@@ -7,7 +7,9 @@ header{padding:10px 16px;background:#1d2a1d;border-bottom:1px solid #333}header 
 header a{color:#8cf}#log{flex:1;overflow:auto;padding:12px 16px}
 .m{max-width:900px;margin:0 auto 14px;padding:10px 14px;border-radius:10px;white-space:pre-wrap}
 .u{background:#243447}.a{background:#1e1e1e;border:1px solid #333}.src{font-size:13px;color:#bbb;margin-top:8px;border-top:1px solid #333;padding-top:6px;white-space:normal}
-.src a{color:#8cf}.warn{color:#fc6;font-size:13px}
+.src a{color:#8cf}.warn{color:#fc6;font-size:13px}.s{margin:6px 0;overflow-wrap:anywhere}.fp{color:#999;font-size:12px}code{overflow-wrap:anywhere}
+.acts{white-space:nowrap}.src a.dl{display:inline-block;margin:3px 4px 3px 0;padding:3px 10px;border-radius:14px;background:#2e7d32;color:#fff;text-decoration:none;font-weight:600}.src a.dl:hover{background:#388e3c}.src a.raw{font-size:12px;color:#9ab}
+@media (max-width:600px){body{font-size:15px;height:100dvh}header{padding:8px 10px}#log{padding:8px}.m{padding:8px 10px}form{padding:8px;gap:6px}button{padding:0 12px}textarea{min-width:0;height:60px;font-size:16px}header small{font-size:12px;line-height:1.35}#ex{display:flex;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}#ex button{font-size:12px;flex:none}}
 form{display:flex;gap:8px;padding:10px 16px;background:#1a1a1a;border-top:1px solid #333}
 textarea{flex:1;font:inherit;background:#222;color:#eee;border:1px solid #444;border-radius:8px;padding:8px;resize:none;height:54px}
 button{font:inherit;padding:0 18px;border-radius:8px;border:0;background:#2e7d32;color:#fff;cursor:pointer}button:disabled{background:#555}
@@ -15,7 +17,7 @@ button{font:inherit;padding:0 18px;border-radius:8px;border:0;background:#2e7d32
 </style></head><body>
 <header><b>Survival AI - Library Chat</b> <small id="info">offline</small><br>
 <small>Answers are drawn from your <b>Survival Library</b> PDFs and cite the file to open. Not medical certainty: the official guides win. 
-Click a source to open the PDF. &middot; <a href="http://127.0.0.1:8080" target="_blank">Plain AI chat (no library)</a> &middot; <a href="#" id="clr">New chat</a></small>
+Click a source to open the PDF at the cited page (works on phones too), or Download PDF to save the whole guide. &middot; <a href="http://127.0.0.1:8080" target="_blank">Plain AI chat (no library)</a> &middot; <a href="#" id="clr">New chat</a></small>
 <div id="ex"></div></header>
 <div id="log"></div>
 <form id="f"><textarea id="q" placeholder="Ask a survival or first-aid question... (Enter to send, Shift+Enter for new line)"></textarea><button id="b">Ask</button></form>
@@ -37,7 +39,7 @@ async function send(){const t=q.value.trim();if(!t||b.disabled)return;q.value=''
    while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);if(!line.startsWith('data:'))continue;const p=line.slice(5).trim();if(p==='[DONE]')continue;
     try{const j=JSON.parse(p);if(j.sources){src=j.sources;render();continue}const c=j.choices&&j.choices[0]&&j.choices[0].delta&&j.choices[0].delta.content;if(c){txt+=c;render()}}catch(e){}}}
  }catch(e){txt+=(txt?'\n\n':'')+'Error: '+e.message}
- function render(){const nb=log.scrollHeight-log.scrollTop-log.clientHeight<80;if(txt)te.innerHTML=md(txt);if(src.length&&!srcShown){srcShown=true;se.innerHTML='<div class="src"><b>Sources in your Survival Library:</b><br>'+src.map(s=>`[${s.n}] <a href="/pdf/${s.file.split(/[\\\/]/).map(encodeURIComponent).join('/')}#page=${s.page}" target="_blank">${esc(s.title)} - open at page ${s.page}</a><br>&nbsp;&nbsp;&nbsp;&nbsp;file: <code>${esc(s.path)}</code> (page ${s.page})`).join('<br>')+'</div>'}if(nb)log.scrollTop=1e9}
+ function render(){const nb=log.scrollHeight-log.scrollTop-log.clientHeight<80;if(txt)te.innerHTML=md(txt);if(src.length&&!srcShown){srcShown=true;se.innerHTML='<div class="src"><b>Sources in your Survival Library:</b>'+src.map(s=>{const u='/pdf/'+s.file.split(/[\\\/]/).map(encodeURIComponent).join('/'),v='/pdfjs/web/viewer.html?file='+encodeURIComponent(u)+'#page='+s.page,fn=esc(s.file.split(/[\\\/]/).pop()).replace(/"/g,'&quot;');return `<div class="s">[${s.n}] <a href="${v}" target="_blank">${esc(s.title)} - open at page ${s.page}</a> <span class="acts"><a class="dl" href="${u}?dl=1" download="${fn}">&#11015; Download PDF</a> <a class="raw" href="${u}#page=${s.page}" target="_blank">raw PDF</a></span><br><span class="fp">file: <code>${esc(s.path)}</code> (page ${s.page})</span></div>`}).join('')+'</div>'}if(nb)log.scrollTop=1e9}
  render();hist.push({role:'assistant',content:txt});b.disabled=false;q.focus()}
 document.getElementById('f').onsubmit=e=>{e.preventDefault();send()};
 q.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});

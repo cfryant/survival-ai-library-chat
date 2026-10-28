@@ -5,8 +5,12 @@ Portable llama.cpp + standard-library Python, for Windows. No internet needed, n
 
 - You ask a question in the browser; **Library Chat** searches a pre-built text index of your PDF guides (BM25),
   sends the best passages to a local `llama-server`, and streams back an answer that cites them as `[1]`, `[2]` …
-- Every source is listed with its file path and page, and is a link that opens the PDF at that page
-  (links stay clickable while the answer is still streaming).
+- Every source is listed with its file path and page, and is a link that opens the PDF **at the cited page** in a bundled,
+  offline copy of Mozilla's **PDF.js viewer**. This works in any browser, including Brave and phones/tablets that ignore `#page=`
+  or have no built-in PDF viewer (links stay clickable while the answer is still streaming).
+- Each source also has a **Download PDF** button to save the whole guide, and the viewer has its own always-visible
+  **Download this PDF** button (also on narrow / mobile screens). A small "raw PDF" link opens the file directly as a fallback.
+- The chat page is mobile-friendly (tested at 375 px wide).
 - Everything binds to **127.0.0.1 only**. Nothing is sent anywhere; it runs from a USB / portable drive.
 
 > **Safety:** the AI can be wrong. Its answers are **not medical certainty**. The official guides always win –
@@ -46,6 +50,8 @@ This repository is the contents of the `AI` folder of the kit (plus `KIT-README.
    ├─ library-search\
    │  ├─ server.py                 <- Library Chat server (stdlib only), 127.0.0.1:8081
    │  ├─ index.html                <- Library Chat page
+   │  ├─ viewer-addon.css / .js    <- Library Chat's download button + mobile tweaks for the PDF.js viewer
+   │  ├─ pdfjs\                    <- Mozilla PDF.js v6.4.299 prebuilt viewer (bundled, Apache-2.0, see pdfjs\LICENSE)
    │  ├─ build_index.py            <- extracts PDF text -> index\chunks.json (needs pypdf)
    │  ├─ make_prompt.py            <- writes config\ from Survival Library\MANIFEST.csv
    │  ├─ Rebuild library index.bat <- runs build_index.py + make_prompt.py
@@ -80,6 +86,11 @@ Notes:
   on any machine with Python, or download the `pypdf-*.whl` file from PyPI (a wheel is a zip) and extract its `pypdf\` folder into `AI\app\pylib\`.
 - `curl.exe` (built into Windows 10/11) is used for health checks.
 - Library Chat (`server.py`) needs only the Python standard library.
+- The PDF viewer is **already included** in `library-search\pdfjs\`: Mozilla PDF.js **v6.4.299**, generic (modern-browser) build,
+  unmodified, from <https://github.com/mozilla/pdf.js/releases/download/v6.4.299/pdfjs-6.4.299-dist.zip>
+  (SHA-256 `f2245eb7ef3f674c872fe568a177bfec15874f5c034613e55d8e307f93ebd86d`), with the `*.map` source maps and the sample PDF removed.
+  To update it, unzip a newer `pdfjs-X-dist.zip` from <https://github.com/mozilla/pdf.js/releases> over that folder. For very old
+  browsers you can use the `pdfjs-X-legacy-dist.zip` from the same release instead. It makes no internet requests.
 
 ## Install, step by step
 
@@ -119,7 +130,8 @@ Note: it stops *every* `llama-server.exe` on the PC.
 
 ## Library Chat details
 
-- `GET /` chat page, `GET /api/info` index stats, `GET /api/search?q=` raw passage search, `POST /api/chat` (OpenAI-style messages, SSE stream with a leading `{"sources": [...]}` event), `GET /pdf/<path>` serves PDFs from `Survival Library` only (path-traversal checked).
+- `GET /` chat page, `GET /api/info` index stats, `GET /api/search?q=` raw passage search, `POST /api/chat` (OpenAI-style messages, SSE stream with a leading `{"sources": [...]}` event), `GET /pdf/<path>` serves PDFs from `Survival Library` only (path-traversal checked; HTTP Range supported; add `?dl=1` to download
+  as an attachment), `GET /pdfjs/...` serves the bundled PDF.js viewer, e.g. `/pdfjs/web/viewer.html?file=%2Fpdf%2F<url-encoded path>#page=12`.
 - Options: `--port 8081 --llama http://127.0.0.1:8080 --k 4 --max-tokens 512 --mode <label> --pidfile <file>`.
 
 ## Safety

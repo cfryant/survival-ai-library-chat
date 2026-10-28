@@ -93,6 +93,23 @@ def build_messages(history, hits):
     msgs += [m for m in history if m.get("role") in ("user", "assistant")][-(3 if ARGS.k <= 4 else 5):]
     return msgs
 
+PDFJS = os.path.join(HERE, "pdfjs")      # Mozilla PDF.js prebuilt viewer (generic build), unzipped here
+MIME = {".html": "text/html; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8", ".json": "application/json", ".wasm": "application/wasm",
+        ".ftl": "text/plain; charset=utf-8", ".properties": "text/plain; charset=utf-8", ".bcmap": "application/octet-stream",
+        ".pfb": "application/octet-stream", ".ttf": "font/ttf", ".icc": "application/octet-stream", ".svg": "image/svg+xml",
+        ".png": "image/png", ".gif": "image/gif", ".pdf": "application/pdf"}
+# Extra CSS/JS added to the unmodified PDF.js viewer.html (its CSP only allows same-origin files, not inline code):
+# keeps the toolbar Download button visible on narrow screens and adds a floating "Download this PDF" button.
+ADDON = b'<link rel="stylesheet" href="/viewer-addon.css" /><script src="/viewer-addon.js" defer></script></head>'
+
+def safe_under(root, rel):
+    rel = urllib.parse.unquote(rel).replace("/", os.sep)
+    full = os.path.realpath(os.path.join(root, rel))
+    if not full.startswith(os.path.realpath(root) + os.sep):
+        return None
+    return full if os.path.isfile(full) else None
+
 def safe_lib_path(rel):
     rel = urllib.parse.unquote(rel).replace("/", os.sep)
     full = os.path.realpath(os.path.join(LIB, rel))
@@ -113,6 +130,38 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers(); self.wfile.write(body)
 
+    def send_file(self, full, attachment=False):
+        """Serve a PDF inline (or as a download with ?dl=1), with HTTP Range support for the PDF.js viewer."""
+        size = os.path.getsize(full)
+        start, end, code = 0, size - 1, 200
+        m = re.match(r"bytes=(\d*)-(\d*)$", self.headers.get("Range", "").strip())
+        if m and not attachment and (m.group(1) or m.group(2)):
+            if m.group(1):
+                start = int(m.group(1)); end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+            else:
+                start = max(size - int(m.group(2)), 0)
+            if start > end or start >= size:
+                self.send_response(416); self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0"); self.end_headers(); return
+            code = 206
+        self.send_response(code)
+        self.send_header("Content-Type", "application/pdf")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        if code == 206: self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Disposition", ("attachment" if attachment else "inline") +
+                         "; filename*=UTF-8''" + urllib.parse.quote(os.path.basename(full)))
+        self.end_headers()
+        try:
+            with open(full, "rb") as f:
+                f.seek(start); left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(left, 1 << 20))
+                    if not chunk: break
+                    self.wfile.write(chunk); left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+
     def do_GET(self):
         u = urllib.parse.urlparse(self.path)
         if u.path in ("/", "/index.html"):
@@ -123,19 +172,21 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/api/search":
             q = urllib.parse.parse_qs(u.query).get("q", [""])[0]
             return self.send(200, search(q, 8))
-        if u.path.startswith("/pdf/"):
-            full = safe_lib_path(u.path[5:])
+        if u.path in ("/viewer-addon.css", "/viewer-addon.js"):
+            with open(os.path.join(HERE, u.path[1:]), "rb") as f:
+                return self.send(200, f.read(), MIME[os.path.splitext(u.path)[1]])
+        if u.path.startswith("/pdfjs/"):
+            full = safe_under(PDFJS, u.path[7:])
             if not full: return self.send(404, {"error": "not found"})
             with open(full, "rb") as f:
                 data = f.read()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/pdf")
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Content-Disposition", "inline; filename*=UTF-8''" + urllib.parse.quote(os.path.basename(full)))
-            self.end_headers()
-            try: self.wfile.write(data)
-            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError): pass
-            return
+            if u.path == "/pdfjs/web/viewer.html":
+                data = data.replace(b"</head>", ADDON, 1)
+            return self.send(200, data, MIME.get(os.path.splitext(full)[1].lower(), "application/octet-stream"))
+        if u.path.startswith("/pdf/"):
+            full = safe_lib_path(u.path[5:])
+            if not full: return self.send(404, {"error": "not found"})
+            return self.send_file(full, "dl" in urllib.parse.parse_qs(u.query))
         return self.send(404, {"error": "not found"})
 
     def do_POST(self):
