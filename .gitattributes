@@ -1,0 +1,4 @@
+# Windows launchers and kit text files must keep CRLF line endings exactly as committed
+*.bat -text
+*.cmd -text
+*.txt -text

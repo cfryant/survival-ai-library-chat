@@ -1,0 +1,8 @@
+# Large / machine-specific runtime pieces - download these separately (see README.md)
+models/
+app/
+python/
+logs/
+index/
+*.gguf
+*.pdf
