@@ -69,7 +69,7 @@ Paths are all relative to the scripts (`%~dp0` in the batch files, `__file__` in
 | &nbsp;&nbsp;CPU only: `llama-bXXXX-bin-win-cpu-x64.zip` | same release page | `AI\app\cpu\` |
 | **Python embeddable package** (Windows x86-64, 3.10 or newer) | <https://www.python.org/downloads/windows/> → "Windows embeddable package (64-bit)" | `AI\app\python\` (must contain `python.exe` and `pythonw.exe`) |
 | **pypdf** (pure Python; only used by `build_index.py`) | <https://pypi.org/project/pypdf/> | `AI\app\pylib\` (so that `AI\app\pylib\pypdf\` exists) |
-| **GGUF models** | Hugging Face | `AI\models\` |
+| **GGUF models** | Hugging Face. See **[MODELS.md](MODELS.md)** for verified low-power picks for every kind of hardware (NVIDIA, AMD/Intel, CPU-only, Mac, iPhone/iPad, Android, Raspberry Pi) | `AI\models\` |
 | &nbsp;&nbsp;`Qwen3.5-4B-Q4_K_M.gguf` (battery / lowest power) | <https://huggingface.co/unsloth/Qwen3.5-4B-GGUF> | `AI\models\` |
 | &nbsp;&nbsp;`Qwen_Qwen3.5-9B-Q4_K_M.gguf` (plugged in) | <https://huggingface.co/bartowski/Qwen_Qwen3.5-9B-GGUF> | `AI\models\` |
 
